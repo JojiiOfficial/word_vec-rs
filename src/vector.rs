@@ -29,7 +29,7 @@ impl<'v, 't> Vector<'v, 't> {
 
     #[inline]
     pub fn term(&self) -> &str {
-        &self.term
+        self.term
     }
 
     #[inline]

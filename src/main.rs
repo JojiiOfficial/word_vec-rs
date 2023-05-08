@@ -1,21 +1,19 @@
-use parse::Word2VecParser;
-use space::VecSpace;
-use vector::OwnedVector;
-
 pub mod as_vector;
+pub mod export;
+pub mod iter;
 pub mod parse;
 pub mod space;
 pub mod vector;
 
-fn main() {
-    let en_space = Word2VecParser::new()
-        .index_terms(true)
-        .parse("./en.vec")
-        .unwrap();
+use parse::Word2VecParser;
+use space::VecSpace;
+use std::time::Instant;
+use vector::OwnedVector;
 
-    let ja_space = Word2VecParser::new()
+fn main() {
+    /* let space = Word2VecParser::new()
         .index_terms(true)
-        .parse("./jp.vec")
+        .parse("/home/jojii/tmp/cc.ja.300.vec")
         .unwrap();
 
     println!("Loaded");
@@ -28,7 +26,41 @@ fn main() {
             continue;
         }
 
-        print_top_k(&ja_space, txt, &en_space, 10);
+        print_top_k(&space, txt, &space, 10);
+
+        buf.clear();
+    } */
+
+    let start = Instant::now();
+    let _en_space = Word2VecParser::new()
+        .index_terms(true)
+        .parse_file("./en.vec")
+        .unwrap();
+    println!("loading took: {:?}", start.elapsed());
+}
+
+pub fn main2() {
+    let en_space = Word2VecParser::new()
+        .index_terms(true)
+        .parse_file("./enja.para.lang0.vec")
+        .unwrap();
+
+    let ja_space = Word2VecParser::new()
+        .index_terms(true)
+        .parse_file("./enja.para.lang1.vec")
+        .unwrap();
+
+    println!("Loaded");
+    let mut buf = String::new();
+    loop {
+        std::io::stdin().read_line(&mut buf).unwrap();
+        let txt = buf.trim();
+        if txt.is_empty() {
+            buf.clear();
+            continue;
+        }
+
+        print_top_k(&en_space, txt, &ja_space, 10);
 
         buf.clear();
     }
@@ -50,8 +82,12 @@ fn print_top_k(src_space: &VecSpace, term: &str, space: &VecSpace, k: usize) {
         qvec = qvec + subterms[i];
     }
 
-    println!("Top k={k} for {term:?}:");
-    let top = space.top_k(&&qvec, k);
+    let start = Instant::now();
+    let top = space.top_k(k, |o| qvec.cosine(o));
+    let dur = start.elapsed();
+
+    println!("Top k={k} for {term:?} (in: {dur:?}):");
+
     for (sim, vec) in top {
         println!("- {} ({})", vec.term(), sim);
     }

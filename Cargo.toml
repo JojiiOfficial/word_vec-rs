@@ -9,6 +9,8 @@ edition = "2021"
 borrowme = "*"
 nalgebra = "*"
 serde = { version = "*", optional =true, features = ["derive"] }
+priority_container = { git = "https://github.com/JojiiOfficial/PrioContainer"}
+order_struct = { git = "https://github.com/JojiiOfficial/OrderStruct" }
 
 [features]
 default = ["serde"]

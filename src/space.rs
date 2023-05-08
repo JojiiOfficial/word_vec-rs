@@ -1,8 +1,10 @@
-use crate::{as_vector::AsVectorRef, vector::Vector};
-use std::collections::HashMap;
+use crate::{as_vector::AsVectorRef, iter::VecSpaceIter, vector::Vector};
+use order_struct::{float_ord::FloatOrd, OrderVal};
+use std::{collections::HashMap, slice::Iter};
 
-/// A memory optimized vector space that can handle a lot of high dimensional word vecs.
-#[derive(Clone)]
+/// A memory optimized vector space that can handle a lot of high dimensional word vecs with as few
+/// memory overhead as possible.
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VecSpace {
     /// A big vector for vector data. Since all vectors have the same dimension we can simply
@@ -62,12 +64,45 @@ impl VecSpace {
         self.dimension
     }
 
+    /// Shrinks the capacity of the vec space as much as possible.
+    pub fn shrink_to_fit(&mut self) {
+        self.words.shrink_to_fit();
+        self.vec_data.shrink_to_fit();
+        if let Some(term_map) = self.term_map.as_mut() {
+            term_map.shrink_to_fit();
+        }
+    }
+
+    /// Returns the total capacity of the vector spaces allocation.
+    pub fn total_cap(&self) -> usize {
+        self.words.capacity()
+            + self.vec_data.capacity()
+            + self.term_map.as_ref().map(|i| i.capacity()).unwrap_or(0)
+    }
+
+    /// Reservers capacity for at least `additional` more vectors.
+    pub fn reserve(&mut self, additional: usize) {
+        self.words.reserve(additional);
+        self.vec_data.reserve(additional * self.dimension);
+    }
+
+    /// Returns an iterator over all vectors in the space.
+    #[inline]
+    pub fn iter(&self) -> VecSpaceIter {
+        VecSpaceIter::new(self)
+    }
+
+    #[inline]
+    pub fn terms(&self) -> Iter<String> {
+        self.words.iter()
+    }
+
     /// Inserts a word vector into the vecspace. Returns an error if the dimensions don't match.
     pub fn insert<'v, 't, R: AsVectorRef<'v, 't>>(&mut self, vec: R) -> Result<(), String> {
         let vec = vec.as_vec_ref();
         if vec.dim() != self.dimension {
             return Err(format!(
-                "Tried to insert vec with dimension {} into space with dimension {}",
+                "Tried to insert a {} dimensional vec into a space with {} dimensions",
                 vec.dim(),
                 self.dim()
             ));
@@ -90,17 +125,25 @@ impl VecSpace {
         Some(Vector::new(vec_data, word))
     }
 
-    pub fn top_k<'v, 't, R: AsVectorRef<'v, 't>>(&self, vec: &R, k: usize) -> Vec<(f32, Vector)> {
-        let mut out = vec![];
+    /// Find `k` most similar vectors using `sim` as similarity funciton without allocating more
+    /// than `k` items.
+    pub fn top_k<S>(&self, k: usize, sim: S) -> Vec<(f32, Vector)>
+    where
+        S: Fn(&Vector) -> f32,
+    {
+        let mut cont = priority_container::PrioContainerMax::new(k);
 
         for v in (0..self.len()).map(|i| self.get(i).unwrap()) {
-            let sim = v.cosine(vec);
-            out.push((sim, v));
+            let s = sim(&v);
+            cont.insert(OrderVal::new(v, FloatOrd(s)));
         }
 
-        out.sort_by(|a, b| a.0.total_cmp(&b.0).reverse());
-        out.truncate(k);
-        out
+        let mut res: Vec<_> = cont
+            .into_iter()
+            .map(|i| (i.0.ord().0, i.0.into_inner()))
+            .collect();
+        res.reverse();
+        res
     }
 
     /// Searches for a given term in the space
@@ -146,7 +189,7 @@ where
             let i = i.as_vec_ref();
             if self.insert(i).is_err() {
                 panic!(
-                    "Tried to insert vector with dimension of {} into space with dimension of {}",
+                    "Tried to insert a {} dimensional vec into a space with {} dimensions",
                     i.dim(),
                     self.dim(),
                 );

@@ -44,6 +44,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "17febce684fd15d89027105661fec94afb475cb995fbc59d2865198446ba2eea"
 
 [[package]]
+name = "float-ord"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ce81f49ae8a0482e4c55ea62ebbd7e5a686af544c00b9d090bba3ff9be97b3d"
+
+[[package]]
 name = "matrixmultiply"
 version = "0.3.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -120,10 +126,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "order_struct"
+version = "0.1.0"
+source = "git+https://github.com/JojiiOfficial/OrderStruct#08dc8aa1feb613e95b125fae2b276ecb6955e431"
+dependencies = [
+ "float-ord",
+]
+
+[[package]]
 name = "paste"
 version = "1.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f746c4065a8fa3fe23974dd82f15431cc8d40779821001404d10d2e79ca7d79"
+
+[[package]]
+name = "priority_container"
+version = "0.1.1"
+source = "git+https://github.com/JojiiOfficial/PrioContainer#09a14d6ebc49fd789c4516f7ba97fc453fa49570"
 
 [[package]]
 name = "proc-macro2"
@@ -241,5 +260,7 @@ version = "0.1.0"
 dependencies = [
  "borrowme",
  "nalgebra",
+ "order_struct",
+ "priority_container",
  "serde",
 ]
