@@ -17,3 +17,18 @@ let hi = space.find_term("hi").unwrap();
 println!("{}", hello.cosine(&hi));
 
 ```
+
+### Convert file format
+```rust
+// Load a space
+let space = Word2VecParser::new()
+    .binary()
+    .index_terms(true)
+    .parse_file("./GoogleNews-vectors-negative300.bin")
+    .unwrap();
+
+// export space to .vec file
+let out = BufWriter::new(File::create("GoogleNews-vectors-negative300.vec").unwrap());
+Exporter::new(out).export_space(&space).unwrap();
+
+```
