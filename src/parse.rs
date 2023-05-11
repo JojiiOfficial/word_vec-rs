@@ -136,7 +136,8 @@ impl Word2VecParser {
             .find(self.term_separator)
             .ok_or(Error::InvalidVectorFormat)?;
 
-        for i in line[term_vec_split + 1..line.len() - 1]
+        for i in line[term_vec_split + 1..]
+            .trim()
             .split(self.vec_separator)
             .map(|i| i.parse::<f32>())
         {
@@ -159,7 +160,7 @@ impl Word2VecParser {
             return Err(Error::EOF);
         }
 
-        let term = str::from_utf8(rbuf)?;
+        let term = str::from_utf8(&rbuf[..rbuf.len() - 1])?;
 
         let mut float_buf = [0u8; 4];
         for _ in 0..vec_len {

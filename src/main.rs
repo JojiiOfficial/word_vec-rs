@@ -13,11 +13,17 @@ use vector::OwnedVector;
 
 fn main() {
     let start = Instant::now();
-    let _en_space = Word2VecParser::new()
+    let en_space = Word2VecParser::new()
         .binary()
+        .index_terms(true)
         .parse_file("./GoogleNews-vectors-negative300.bin")
         .unwrap();
-    println!("loading took: {:?}", start.elapsed());
+
+    println!(
+        "loading {} vectors took: {:?}",
+        en_space.len(),
+        start.elapsed()
+    );
     loop {}
 }
 

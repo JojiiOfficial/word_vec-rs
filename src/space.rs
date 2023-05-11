@@ -1,8 +1,9 @@
 use crate::{as_vector::AsVectorRef, error::Error, iter::VecSpaceIter, vector::Vector};
+use ahash::AHashMap;
 use order_struct::{float_ord::FloatOrd, OrderVal};
-use std::{collections::HashMap, slice::Iter};
+use std::slice::Iter;
 
-/// A memory optimized vector space that can handle a lot of high dimensional word vecs with as few
+/// A highly memory optimized vector space that can handle a lot of high dimensional word vecs with as few
 /// memory overhead as possible.
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -18,7 +19,7 @@ pub struct VecSpace {
     dimension: usize,
 
     /// Index for terms to their ID.
-    term_map: Option<HashMap<String, u32>>,
+    pub term_map: Option<AHashMap<String, u32>>,
 }
 
 impl VecSpace {
@@ -37,7 +38,7 @@ impl VecSpace {
     /// terms faster. Existing terms will be indexed when calling this function.
     #[inline]
     pub fn with_termmap(mut self) -> Self {
-        self.term_map = Some(HashMap::new());
+        self.term_map = Some(AHashMap::new());
 
         if !self.is_empty() {
             self.index_terms();
