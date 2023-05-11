@@ -1,17 +1,20 @@
 [package]
 name = "word_vec-rs"
+description = " Memory efficient library to work with word2vec vectors"
+authors = ["jojii <jojii@gmx.net>"]
+license = "AGPL-3.0-or-later"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-borrowme = "*"
-nalgebra = "*"
-serde = { version = "*", optional =true, features = ["derive"] }
-priority_container = { git = "https://github.com/JojiiOfficial/PrioContainer"}
-order_struct = { git = "https://github.com/JojiiOfficial/OrderStruct" }
-ahash = { version = "*", features = ["serde"] }
+borrowme = "0.0.14"
+nalgebra = "0.32"
+serde = { version = "1.0", optional =true, features = ["derive"] }
+priority_container = "0.1"
+order_struct = "0.1"
+ahash = { version = "0.8", features = ["serde"] }
 
 [features]
 default = ["serde"]

@@ -1,8 +1,7 @@
-use std::ops::Add;
-
 use crate::as_vector::AsVectorRef;
 use borrowme::borrowme;
 use nalgebra::DVectorView;
+use std::ops::Add;
 
 /// A single WordVector
 #[borrowme]

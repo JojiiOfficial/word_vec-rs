@@ -170,7 +170,8 @@ checksum = "b7e5500299e16ebb147ae15a00a942af264cf3688f47923b8fc2cd5858f23ad3"
 [[package]]
 name = "order_struct"
 version = "0.1.0"
-source = "git+https://github.com/JojiiOfficial/OrderStruct#08dc8aa1feb613e95b125fae2b276ecb6955e431"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f885ac0bc49a39eab6bae60c5ba7589908a164ed92360b82431ad8a33077b11"
 dependencies = [
  "float-ord",
 ]
@@ -184,7 +185,8 @@ checksum = "9f746c4065a8fa3fe23974dd82f15431cc8d40779821001404d10d2e79ca7d79"
 [[package]]
 name = "priority_container"
 version = "0.1.1"
-source = "git+https://github.com/JojiiOfficial/PrioContainer#09a14d6ebc49fd789c4516f7ba97fc453fa49570"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c4886bb938a91e70d3a84efa590f753cf52076149f5963de5727085435f5cbcb"
 
 [[package]]
 name = "proc-macro2"
