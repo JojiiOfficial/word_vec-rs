@@ -1,4 +1,5 @@
 pub mod as_vector;
+pub mod error;
 pub mod export;
 pub mod iter;
 pub mod parse;
@@ -11,32 +12,13 @@ use std::time::Instant;
 use vector::OwnedVector;
 
 fn main() {
-    /* let space = Word2VecParser::new()
-        .index_terms(true)
-        .parse("/home/jojii/tmp/cc.ja.300.vec")
-        .unwrap();
-
-    println!("Loaded");
-    let mut buf = String::new();
-    loop {
-        std::io::stdin().read_line(&mut buf).unwrap();
-        let txt = buf.trim();
-        if txt.is_empty() {
-            buf.clear();
-            continue;
-        }
-
-        print_top_k(&space, txt, &space, 10);
-
-        buf.clear();
-    } */
-
     let start = Instant::now();
     let _en_space = Word2VecParser::new()
-        .index_terms(true)
-        .parse_file("./en.vec")
+        .binary()
+        .parse_file("./GoogleNews-vectors-negative300.bin")
         .unwrap();
     println!("loading took: {:?}", start.elapsed());
+    loop {}
 }
 
 pub fn main2() {

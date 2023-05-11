@@ -3,3 +3,8 @@ en.vec
 jp.vec
 enja.para.lang0.vec
 enja.para.lang1.vec
+GoogleNews-vectors-negative300.bin
+GoogleNews-vectors-negative300.bin.gz
+enja.para.lang0.vec
+enja.para.lang1.vec en.vec jp.vec
+w2v_subset_3.3.bin

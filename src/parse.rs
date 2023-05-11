@@ -1,11 +1,11 @@
 use std::{
-    error::Error,
     fs::File,
     io::{BufRead, BufReader, Read},
     path::Path,
+    str,
 };
 
-use crate::{space::VecSpace, vector::Vector};
+use crate::{error::Error, space::VecSpace, vector::Vector};
 
 /// Parser for Word2Vec's .vec files.
 #[derive(Clone, Copy, Debug)]
@@ -56,59 +56,26 @@ impl Word2VecParser {
         self
     }
 
-    /* /// Parse into an existing [`VecSpace`]
-    pub fn parse_into<F: AsRef<Path>>(
-        &self,
-        file: F,
-        space: &mut VecSpace,
-    ) -> Result<(), Box<dyn Error>> {
-        let reader = BufReader::new(File::open(file)?);
-        let mut lines = reader.lines();
-
-        if self.parse_header {
-            let header = lines.next().ok_or("No header")??;
-            let (_, dim) = self.parse_header(&header)?;
-            assert_eq!(dim, space.dim());
-        }
-
-        let mut buf = vec![];
-
-        for line in lines {
-            let line = line?;
-            let vec = self.parse_vec(&line, &mut buf)?;
-            space.insert(&vec)?;
-        }
-
-        Ok(())
-    } */
-
-    pub fn parse<R: Read>(&self, reader: R) -> Result<VecSpace, Box<dyn Error>> {
+    pub fn parse<R: Read>(&self, reader: R) -> Result<VecSpace, Error> {
         let mut space = VecSpace::new(0);
 
+        let mut parsed_header = false;
+        let mut line_buf = vec![];
         let mut float_buf = vec![];
 
-        let mut parsed_header = false;
         let mut r = BufReader::new(reader);
-        let mut line_buf = vec![];
+
         loop {
             line_buf.clear();
-            if r.read_until(b'\n', &mut line_buf).unwrap() == 0 {
-                if !parsed_header {
-                    return Err("Nothing to parse".into());
-                } else {
-                    break;
-                }
-            }
 
             if !parsed_header {
-                if self.parse_header {
-                    let (_, dim) = self.parse_header(&line_buf)?;
-                    space = VecSpace::new(dim);
-                } else {
-                    let first_vec = self.parse_vec(&line_buf, &mut float_buf)?;
-                    space = VecSpace::new(first_vec.dim());
-                    space.insert(&first_vec)?;
+                if r.read_until(b'\n', &mut line_buf).unwrap() == 0 {
+                    return Err(Error::InvalidVectorFormat)?;
                 }
+
+                let (_, dim) = self.parse_header(&line_buf)?;
+                space = VecSpace::new(dim);
+                float_buf.reserve_exact(dim);
 
                 if self.index_terms {
                     space = space.with_termmap();
@@ -121,7 +88,11 @@ impl Word2VecParser {
             }
 
             // Parse line and insert into space
-            space.insert(&self.parse_vec(&line_buf, &mut float_buf).unwrap())?;
+            let vec = self.parse_vec(&mut r, &mut float_buf, &mut line_buf, space.dim());
+            if vec == Err(Error::EOF) {
+                break;
+            }
+            space.insert(&vec?)?;
         }
 
         Ok(space)
@@ -129,21 +100,29 @@ impl Word2VecParser {
 
     /// Parses a word vector file.
     #[inline]
-    pub fn parse_file<F: AsRef<Path>>(&self, file: F) -> Result<VecSpace, Box<dyn Error>> {
+    pub fn parse_file<F: AsRef<Path>>(&self, file: F) -> Result<VecSpace, Error> {
         self.parse(File::open(file)?)
     }
 
     /// Parses a single vec line
-    fn parse_vec<'v, 't>(
+    fn parse_vec<'v, 't, R: BufRead>(
         &self,
-        line: &'t [u8],
-        buf: &'v mut Vec<f32>,
-    ) -> Result<Vector<'v, 't>, Box<dyn Error>> {
+        r: &mut R,
+        vbuf: &'v mut Vec<f32>,
+        line_buf: &'t mut Vec<u8>,
+        vec_len: usize,
+    ) -> Result<Vector<'v, 't>, Error> {
+        vbuf.clear();
+        line_buf.clear();
+
         if self.binary {
-            self.parse_vec_bin(line, buf)
+            self.parse_vec_bin(r, vbuf, line_buf, vec_len)
         } else {
-            let line = std::str::from_utf8(line)?;
-            self.parse_vec_txt(line, buf)
+            if r.read_until(b'\n', line_buf)? == 0 {
+                return Err(Error::EOF);
+            }
+            let line = str::from_utf8(line_buf)?;
+            self.parse_vec_txt(line, vbuf)
         }
     }
 
@@ -152,16 +131,16 @@ impl Word2VecParser {
         &self,
         line: &'t str,
         buf: &'v mut Vec<f32>,
-    ) -> Result<Vector<'v, 't>, Box<dyn Error>> {
-        let term_vec_split = line.find(self.term_separator).ok_or("Invalid format")?;
-
-        buf.clear();
+    ) -> Result<Vector<'v, 't>, Error> {
+        let term_vec_split = line
+            .find(self.term_separator)
+            .ok_or(Error::InvalidVectorFormat)?;
 
         for i in line[term_vec_split + 1..line.len() - 1]
             .split(self.vec_separator)
             .map(|i| i.parse::<f32>())
         {
-            buf.push(i?);
+            buf.push(i.map_err(fmt_err)?);
         }
 
         let term = &line[..term_vec_split];
@@ -169,48 +148,72 @@ impl Word2VecParser {
     }
 
     /// Parses a word vector from bin format.
-    fn parse_vec_bin<'v, 't>(
+    fn parse_vec_bin<'v, 't, R: BufRead>(
         &self,
-        line: &'t [u8],
-        _buf: &'v mut Vec<f32>,
-    ) -> Result<Vector<'v, 't>, Box<dyn Error>> {
-        println!("{line:?}");
+        r: &mut R,
+        vbuf: &'v mut Vec<f32>,
+        rbuf: &'t mut Vec<u8>,
+        vec_len: usize,
+    ) -> Result<Vector<'v, 't>, Error> {
+        if r.read_until(b' ', rbuf)? == 0 {
+            return Err(Error::EOF);
+        }
 
-        let space = line
-            .iter()
-            .enumerate()
-            .find(|i| *i.1 == b' ')
-            .ok_or("Wrong bin format")?
-            .0;
-        let term = std::str::from_utf8(&line[..space])?;
-        print!("{term:?}");
+        let term = str::from_utf8(rbuf)?;
 
-        todo!()
+        let mut float_buf = [0u8; 4];
+        for _ in 0..vec_len {
+            r.read_exact(&mut float_buf)?;
+            vbuf.push(f32::from_le_bytes(float_buf.try_into().map_err(fmt_err)?));
+        }
+
+        Ok(Vector::new(vbuf, term))
     }
 
-    fn parse_header(&self, line: &[u8]) -> Result<(usize, usize), Box<dyn Error>> {
+    #[inline]
+    fn parse_header(&self, line: &[u8]) -> Result<(usize, usize), Error> {
         if self.binary {
             self.parse_header_bin(line)
         } else {
-            let line = std::str::from_utf8(line)?.trim();
+            let line = str::from_utf8(line)?.trim();
             self.parse_header_txt(line)
         }
     }
 
-    fn parse_header_bin(&self, _line: &[u8]) -> Result<(usize, usize), Box<dyn Error>> {
-        todo!()
-        /* let mut split = line.split(' ');
-        let count: usize = split.next().unwrap().parse()?;
-        let dim: usize = split.next().unwrap().parse()?;
-        Ok((count, dim)) */
+    fn parse_header_bin(&self, line: &[u8]) -> Result<(usize, usize), Error> {
+        let space = line
+            .iter()
+            .enumerate()
+            .find(|i| *i.1 == b' ')
+            .ok_or(Error::InvalidVectorFormat)?
+            .0;
+
+        let count = str::from_utf8(&line[..space])?;
+        let len = str::from_utf8(&line[space + 1..line.len() - 1])?;
+
+        let count: usize = count.parse().unwrap();
+        let len: usize = len.parse().unwrap();
+
+        Ok((count, len))
     }
 
-    fn parse_header_txt(&self, line: &str) -> Result<(usize, usize), Box<dyn Error>> {
+    fn parse_header_txt(&self, line: &str) -> Result<(usize, usize), Error> {
         let mut split = line.split(' ');
-        let count: usize = split.next().unwrap().parse()?;
-        let dim: usize = split.next().unwrap().parse()?;
+        let mut next_nr = || {
+            split
+                .next()
+                .and_then(|i| i.parse::<usize>().ok())
+                .ok_or(Error::InvalidVectorFormat)
+        };
+        let count = next_nr()?;
+        let dim = next_nr()?;
         Ok((count, dim))
     }
+}
+
+#[inline]
+fn fmt_err<T>(_: T) -> Error {
+    Error::InvalidVectorFormat
 }
 
 impl Default for Word2VecParser {

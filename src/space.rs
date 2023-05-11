@@ -1,4 +1,4 @@
-use crate::{as_vector::AsVectorRef, iter::VecSpaceIter, vector::Vector};
+use crate::{as_vector::AsVectorRef, error::Error, iter::VecSpaceIter, vector::Vector};
 use order_struct::{float_ord::FloatOrd, OrderVal};
 use std::{collections::HashMap, slice::Iter};
 
@@ -98,14 +98,10 @@ impl VecSpace {
     }
 
     /// Inserts a word vector into the vecspace. Returns an error if the dimensions don't match.
-    pub fn insert<'v, 't, R: AsVectorRef<'v, 't>>(&mut self, vec: R) -> Result<(), String> {
+    pub fn insert<'v, 't, R: AsVectorRef<'v, 't>>(&mut self, vec: R) -> Result<(), Error> {
         let vec = vec.as_vec_ref();
         if vec.dim() != self.dimension {
-            return Err(format!(
-                "Tried to insert a {} dimensional vec into a space with {} dimensions",
-                vec.dim(),
-                self.dim()
-            ));
+            return Err(Error::DimMismatch(vec.dim(), self.dim()));
         }
 
         if let Some(term_map) = self.term_map.as_mut() {
